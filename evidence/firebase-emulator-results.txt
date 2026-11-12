@@ -1,0 +1,3 @@
+PASS grounded mock hint: Follow the signed-in learner from the Complete button to the callable transaction.
+PASS Signal Check: no disclosure and no caller progress document after coach. Model failure returned 503.
+PASS reward and retry: users/{learner-a UID}/progress/today remained 10 points, first-quest, same completion timestamp.
