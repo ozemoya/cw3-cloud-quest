@@ -32,3 +32,16 @@ The mock verifies the local data and reward boundaries. Live Genkit/model behavi
 Android evidence and the Firebase emulator test output are in [evidence/](evidence/).
 
 On the AdaptiveFocus_Pixel4 Android 17 emulator, a fictional learner signed in, loaded Signal Check, received the grounded mock hint, collected 10 points and the First Quest badge, retried without a duplicate, and signed out. The Android client uses the callable HTTP protocol against the local Functions emulator.
+
+## Genkit coach
+
+The Genkit flow calls its registered read-only tool before returning a hint.
+The callable supplies the verified learner UID through server context. The model
+receives the resulting quest state and question without the UID, credentials,
+or access to the completion callable.
+
+The Firebase Emulator Suite uses the deterministic coach response. The optional
+server-side Google GenAI adapter takes a Genkit model reference in
+`QUEST_COACH_MODEL` and a server-managed `GEMINI_API_KEY`. This adapter has not
+been verified against the course gateway. Keep model keys in server-side secret
+configuration and out of the repository. No live deployment was performed.

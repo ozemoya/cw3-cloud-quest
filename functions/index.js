@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
+import { createQuestCoach } from './questCoach.js';
+
 initializeApp();
 const db = getFirestore();
 const challenge = db.doc('challenges/today');
@@ -29,27 +31,13 @@ export const completeToday = onCall(async request => {
   });
 });
 
-async function readMyQuestState(uid) {
-  const [quest, saved] = await Promise.all([challenge.get(), progress(uid).get()]);
-  if (!quest.exists) throw new HttpsError('failed-precondition', 'No challenge is available.');
-  return { hint: quest.get('hint'), completed: saved.get('completed') === true };
-}
 
+const questCoach = createQuestCoach(db);
 export const askQuestCoach = onCall(async request => {
   const uid = learner(request);
   const question = request.data?.question;
   if (typeof question !== 'string' || !question.trim() || question.length > 300) {
     throw new HttpsError('invalid-argument', 'Enter a question up to 300 characters.');
   }
-  if (process.env.FUNCTIONS_EMULATOR !== 'true') {
-    throw new HttpsError('unavailable', 'The course model gateway is not configured.');
-  }
-  const state = await readMyQuestState(uid);
-  if (question === 'simulate coach failure') {
-    throw new HttpsError('unavailable', 'The coach is unavailable.');
-  }
-  if (/another learner|500 points|ignore your rules/i.test(question)) {
-    return { reply: 'I can only offer hints for your own quest. Use Complete challenge to request its fixed reward.' };
-  }
-  return { reply: state.completed ? 'You already completed this quest. ' + state.hint : state.hint };
+  return questCoach({ question }, { context: { auth: { uid } } });
 });
