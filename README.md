@@ -30,3 +30,5 @@ The coach callable authenticates the caller and validates the question. Its only
 The mock verifies the local data and reward boundaries. Live Genkit/model behavior and the course Firebase project were not verified. Codex assisted with implementation and testing.
 
 Android evidence and the Firebase emulator test output are in [evidence/](evidence/).
+
+On the AdaptiveFocus_Pixel4 Android 17 emulator, a fictional learner signed in, loaded Signal Check, received the grounded mock hint, collected 10 points and the First Quest badge, retried without a duplicate, and signed out. The Android client uses the callable HTTP protocol against the local Functions emulator.

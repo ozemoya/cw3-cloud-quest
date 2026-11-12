@@ -1,5 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +19,6 @@ Future<void> main() async {
   const host = '10.0.2.2';
   await FirebaseAuth.instance.useAuthEmulator(host, 9099);
   FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
-  FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
   runApp(const CloudQuest());
 }
 
@@ -154,10 +155,9 @@ class _QuestState extends State<Quest> {
       message = '';
     });
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        complete ? 'completeToday' : 'askQuestCoach',
-      );
-      final result = await callable.call<Map<String, dynamic>>(
+      final name = complete ? 'completeToday' : 'askQuestCoach';
+      final result = await callLocalFunction(
+        name,
         complete
             ? {'challengeId': 'today'}
             : {'question': question.text.trim()},
@@ -165,12 +165,13 @@ class _QuestState extends State<Quest> {
       if (!mounted) return;
       setState(
         () => message = complete
-            ? (result.data['alreadyCompleted'] == true
+            ? (result['alreadyCompleted'] == true
                   ? 'Already completed. Your reward is unchanged.'
                   : 'You earned 10 points and the First Quest badge.')
-            : result.data['reply'] as String,
+            : result['reply'] as String,
       );
-    } on FirebaseFunctionsException {
+    } catch (error) {
+      debugPrint('Quest request failed: $error');
       if (mounted) {
         setState(
           () => message = complete
@@ -254,4 +255,30 @@ class _QuestState extends State<Quest> {
       },
     ),
   );
+}
+
+Future<Map<String, dynamic>> callLocalFunction(
+  String name,
+  Map<String, String> data,
+) async {
+  final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+  if (token == null) throw StateError('Sign in first');
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+  try {
+    final request = await client.postUrl(
+      Uri.parse('http://10.0.2.2:5001/demo-cloud-quest/us-central1/$name'),
+    );
+    request.headers.contentType = ContentType.json;
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    request.write(jsonEncode({'data': data}));
+    final response = await request.close().timeout(const Duration(seconds: 10));
+    final body = await utf8.decoder.bind(response).join();
+    if (response.statusCode != 200) {
+      throw HttpException('Callable returned ${response.statusCode}');
+    }
+    return (jsonDecode(body) as Map<String, dynamic>)['result']
+        as Map<String, dynamic>;
+  } finally {
+    client.close(force: true);
+  }
 }
